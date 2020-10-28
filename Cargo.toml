@@ -1,7 +1,8 @@
 [package]
-name = "stuff"
+name = "vulkan-stuff"
 version = "0.1.0"
 edition = "2018"
 
 [dependencies]
 vulkano = "0.19"
+vulkano-shaders = "0.19"

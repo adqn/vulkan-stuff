@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use vulkano::instance::Instance;
 use vulkano::instance::InstanceExtensions;
 use vulkano::instance::PhysicalDevice;
@@ -9,6 +11,9 @@ use vulkano::buffer::CpuAccessibleBuffer;
 use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::command_buffer::CommandBuffer;
 use vulkano::sync::GpuFuture;
+use vulkano::pipeline::ComputePipeline;
+
+
 
 fn main() {
     let instance = Instance::new(None, &InstanceExtensions::none(), None)
@@ -50,4 +55,32 @@ fn main() {
     let src_content = source.read().unwrap();
     let dest_content = dest.read().unwrap();
     assert_eq!(&*src_content, &*dest_content);
+
+    let shader = cs::Shader::load(device.clone())
+        .expect("failed to create shader module");
+
+    let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &())
+        .expect("failed to create compute pipeline"));
+
+    mod cs {
+        vulkano_shaders::shader! {
+            ty: "compute",
+            src: " 
+    #version 450
+
+    layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+    layout(set = 0, binding = 0) buffer Data {
+        uint data[];
+    } buf;
+
+    void main() {
+        uint idx = gl_GlobalInvocationID.x;
+        buf.data[idx] *= 12;
+    }"   
+        }
+    }
+
+    let shader = cs::Shader::load(device.clone())
+        .expect("failed to create shader module");
 }
