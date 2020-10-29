@@ -52,6 +52,7 @@ fn main() {
     finished.then_signal_fence_and_flush().unwrap()
         .wait(None).unwrap();
    
+    // Second example; setting up 
     let src_content = source.read().unwrap();
     let dest_content = dest.read().unwrap();
     assert_eq!(&*src_content, &*dest_content);
@@ -83,4 +84,7 @@ fn main() {
 
     let shader = cs::Shader::load(device.clone())
         .expect("failed to create shader module");
+
+    let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &())
+        .expect("failed to create compute pipeline"));
 }
