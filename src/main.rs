@@ -12,6 +12,8 @@ use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::command_buffer::CommandBuffer;
 use vulkano::sync::GpuFuture;
 use vulkano::pipeline::ComputePipeline;
+use vulkano::descriptor::descriptor_set::PersistentDescriptorSet;
+use vulkano::descriptor::PipelineLayoutAbstract;
 
 
 
@@ -51,7 +53,10 @@ fn main() {
 
     finished.then_signal_fence_and_flush().unwrap()
         .wait(None).unwrap();
-   
+    
+    let dest_content = dest.read().unwrap();
+    println!("{:?}", &*dest_content);
+     
     // Second example; setting up 
     let src_content = source.read().unwrap();
     let dest_content = dest.read().unwrap();
@@ -87,4 +92,15 @@ fn main() {
 
     let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &())
         .expect("failed to create compute pipeline"));
+
+    
+    let data_iter = 0 .. 65536;
+    let data_buffer = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false,
+        data_iter).expect("failed to create buffer");
+
+    let layout = compute_pipeline.layout().descriptor_set_layout(0).unwrap();
+    let set = Arc::new(PersistentDescriptorSet::start(layout.clone())
+        .add_buffer(data_buffer.clone()).unwrap()
+        .build().unwrap()
+    );
 }
