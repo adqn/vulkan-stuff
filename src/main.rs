@@ -32,8 +32,15 @@ fn main() {
         .expect("couldn't find a graphical queue family");
  
     let (device, mut queues) = {
-        Device::new(physical, &Features::none(), &DeviceExtensions::none(),
-            [(queue_family, 0.5)].iter().cloned()).expect("failed to create device")
+        Device::new(
+            physical,
+            &Features::none(),
+            &DeviceExtensions {
+                khr_storage_buffer_storage_class: true,
+                ..DeviceExtensions::none()
+            },
+            [(queue_family, 0.5)].iter().cloned(),
+        ).expect("failed to create device")
     };
 
     let queue = queues.next().unwrap();
@@ -62,12 +69,7 @@ fn main() {
     let dest_content = dest.read().unwrap();
     assert_eq!(&*src_content, &*dest_content);
 
-    let shader = cs::Shader::load(device.clone())
-        .expect("failed to create shader module");
-
-    let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &())
-        .expect("failed to create compute pipeline"));
-
+    // GLSL test
     mod cs {
         vulkano_shaders::shader! {
             ty: "compute",
@@ -92,7 +94,6 @@ fn main() {
 
     let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &())
         .expect("failed to create compute pipeline"));
-
     
     let data_iter = 0 .. 65536;
     let data_buffer = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false,
@@ -103,4 +104,19 @@ fn main() {
         .add_buffer(data_buffer.clone()).unwrap()
         .build().unwrap()
     );
+
+    let mut builder = AutoCommandBufferBuilder::new(device.clone(), queue.family()).unwrap();
+    builder.dispatch([1024, 1, 1], compute_pipeline.clone(), set.clone(), ()).unwrap();
+    let command_buffer = builder.build().unwrap();
+
+    let finished = command_buffer.execute(queue.clone()).unwrap();
+    finished.then_signal_fence_and_flush().unwrap()
+        .wait(None).unwrap();
+
+    let content = data_buffer.read().unwrap();
+    for (n, val) in content.iter().enumerate() {
+        assert_eq!(*val, n as u32 * 12);
+    }
+    //println!("{:?}", &content);
+    println!("Everything succeeded!");
 }
